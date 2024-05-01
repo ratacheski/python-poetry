@@ -21,6 +21,10 @@ The environment includes Poetry, pyenv, and Ruff.
 ## Contents
 The following are the features.
 
+### Branches
+- [main](https://github.com/a5chin/python-poetry/tree/main)
+- [jupyter](https://github.com/a5chin/python-poetry/tree/jupyter)
+
 ### Dev Container
 - `devcontainer.json`
   - settings
