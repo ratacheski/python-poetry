@@ -34,12 +34,17 @@ RUN pip install --no-cache-dir poetry && \
     poetry install && \
     rm -rf ~/.cache
 
-
 FROM mcr.microsoft.com/devcontainers/base:bookworm
 COPY --from=builder /opt/.pyenv /opt/.pyenv
 
 ENV PYENV_ROOT="/opt/.pyenv"
 ENV PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
 ENV PYTHONUNBUFFERED True
+
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends graphviz\
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN chown -R vscode $PYENV_ROOT
