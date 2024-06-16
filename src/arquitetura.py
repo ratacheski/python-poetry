@@ -70,6 +70,12 @@ Stream = partial(Edge, style="dashed", color="orange")
 Socket = partial(Edge, style="dashed", color="slateblue")
 Webhook = partial(Edge, style="dashed", color="mediumseagreen")
 
+
+def nestjs(label: str) -> Custom:
+    """Create a custom node with the NestJS icon."""
+    return Custom(label, "../icons/nest.png")
+
+
 # pylint: disable=W0104,W0106
 with Diagram(
     "Arquitetura Lifeapps",
@@ -219,7 +225,7 @@ with Diagram(
                     image_proxy = Go("Image Proxy")
                     irecommend = Python("IRecommend")
                     chateado = NodeJS("Chateado")
-                    authenticator = NodeJS("Authenticator")
+                    authenticator = nestjs("Authenticator")
                     dadospublicos = NodeJS("Dados Públicos")
                     message_job = Python("Message Job")
                     prupru = NodeJS("Prupru")
@@ -233,11 +239,13 @@ with Diagram(
                     message_job >> Rest() >> elastic_email
                     server >> Webhook() >> discord
                 with Cluster("Botinho"):
-                    api_atendimento = NodeJS("API Atendimento")
-                    api_socket = NodeJS("API Socket")
+                    api_atendimento = nestjs("API Atendimento")
+                    api_socket = nestjs("API Socket")
                     botinho - Socket() - api_socket
                 with Cluster("Integração"):
                     paje = Go("Pajé")
+                with Cluster("Cashback"):
+                    cashback_api = nestjs("Cashback Api")
                 with Cluster("Menu Único"):
                     menu_unico_api = NodeJS("Menu Único API")
                     faturamento = NodeJS("Faturamento")
@@ -263,6 +271,7 @@ with Diagram(
                         image_proxy,
                         menu_unico_api,
                         api_atendimento,
+                        cashback_api,
                     ]
                 )
                 (server >> Grpc(label="Consulta Preço") >> paje)
@@ -291,6 +300,7 @@ with Diagram(
                         image_proxy,
                         api_atendimento,
                         api_socket,
+                        cashback_api,
                     ]
                     >> Stream(
                         lhead="cluster_Message Broker",
