@@ -59,12 +59,13 @@ graph_attr = {
 edge_attr = {
     "fontsize": "20",
     "arrowhead": "vee",
-    "penwidth": "4",
+    "penwidth": "2",
 }
 
 Rest = partial(Edge, color="dodgerblue")
 Grpc = partial(Edge, style="dashed", color="firebrick")
 GraphQL = partial(Edge, style="dashed", color="pink")
+Auth = partial(Edge, style="dashed", color="mediumorchid")
 Stream = partial(Edge, style="dashed", color="orange")
 Socket = partial(Edge, style="dashed", color="slateblue")
 Webhook = partial(Edge, style="dashed", color="mediumseagreen")
@@ -105,22 +106,37 @@ with Diagram(
                     >> nginx
                 )
             with Cluster("Web Applications"):
-                webcommerce = React("WebCommerce")
+                with Cluster("Nginx"):
+                    nginx_commerce = Nginx("Nginx\nCommerces")
+                    (
+                        nginx
+                        >> Rest(
+                            lhead="cluster_Ingress",
+                        )
+                        >> nginx_commerce
+                    )
+                    webcommerce = React("WebCommerce")
+                    custom_webcommerce = React("Custom WebCommerce")
+                    (
+                        nginx_commerce
+                        >> Rest(
+                            minlen="2",
+                        )
+                        >> [webcommerce, custom_webcommerce]
+                    )
                 backoffice = Vue("Backoffice")
                 menu_unico = Vue("Menu Único")
                 faturamento = Vue("Faturamento")
-                paje = Vue("Pajé")
                 botinho = React("Botinho")
+                paje = Vue("Pajé")
                 cashback = React("Cashback")
                 (
                     nginx
                     >> Rest(
                         ltail="cluster_Ingress",
-                        lhead="cluster_Web Applications",
                         minlen="2",
                     )
                     >> [
-                        webcommerce,
                         botinho,
                         cashback,
                         backoffice,
@@ -129,12 +145,36 @@ with Diagram(
                         faturamento,
                     ]
                 )
-
+            with Cluster("Auth"):
+                keycloak = Custom("Keycloak", "../icons/keycloak.png")
+                (
+                    nginx
+                    >> Auth(
+                        ltail="cluster_Ingress",
+                        lhead="cluster_Auth",
+                    )
+                    >> keycloak
+                )
+                (
+                    [
+                        menu_unico,
+                        backoffice,
+                        faturamento,
+                        cashback,
+                        botinho,
+                    ]
+                    >> Auth(
+                        ltail="cluster_Auth",
+                        minlen="2",
+                    )
+                    >> keycloak
+                )
             with Cluster("Api Gateway"):
                 kong = Kong("Kong")
                 (
                     [
                         webcommerce,
+                        custom_webcommerce,
                         botinho,
                         cashback,
                         backoffice,
@@ -143,11 +183,19 @@ with Diagram(
                         faturamento,
                     ]
                     >> Rest(
-                        ltail="cluster_Web Applications",
                         lhead="cluster_Api Gateway",
                         minlen="2",
                     )
                     >> kong
+                )
+                (
+                    kong
+                    >> Auth(
+                        ltail="cluster_Api Gateway",
+                        lhead="cluster_Auth",
+                        minlen="2",
+                    )
+                    >> keycloak
                 )
             with Cluster("Microservices", direction="LR"):
                 with Cluster("Saas"):
@@ -178,7 +226,7 @@ with Diagram(
                     rdstation_notifier = NodeJS("RDStation Notifier")
                     message_notifier = NodeJS("Message Notifier")
                     pizzaroll = NodeJS("Pizzaroll")
-                    webcommerce - Socket() - chateado
+                    [webcommerce, custom_webcommerce] - Socket() - chateado
                     message_notifier >> Rest() >> [one_signal, blip, zenvia]
                     rdstation_notifier >> Rest() >> rd_station
                     telebot >> Rest() >> telegram
@@ -219,6 +267,15 @@ with Diagram(
                 )
                 (server >> Grpc(label="Consulta Preço") >> paje)
                 (paje >> Rest() >> server)
+                (
+                    [faturamento, menu_unico_api]
+                    >> Auth(
+                        ltail="cluster_Api Gateway",
+                        lhead="cluster_Auth",
+                        minlen="2",
+                    )
+                    >> keycloak
+                )
             with Cluster("Message Broker"):
                 kafka = Kafka("Kafka Cluster")
                 (
