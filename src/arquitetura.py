@@ -1,6 +1,7 @@
 from functools import partial  # noqa: INP001
 
 from diagrams import Cluster, Diagram, Edge
+from diagrams.custom import Custom
 
 # ============================================================================ #
 # Digital Ocean resources:
@@ -37,6 +38,7 @@ from diagrams.programming.language import Go, NodeJS, Python
 #   https://diagrams.mingrammer.com/docs/nodes/saas
 #
 from diagrams.saas.cdn import Cloudflare
+from diagrams.saas.chat import Discord, Telegram
 
 # ============================================================================ #
 
@@ -44,7 +46,7 @@ from diagrams.saas.cdn import Cloudflare
 graph_attr = {
     "rankdir": "TB",
     "nodesep": "1",
-    "ranksep": "0.75",
+    "ranksep": "1.5",
     "pad": "0.5",
     "fontsize": "28",
     "labeljust": "c",
@@ -65,6 +67,7 @@ Grpc = partial(Edge, style="dashed", color="firebrick")
 GraphQL = partial(Edge, style="dashed", color="pink")
 Stream = partial(Edge, style="dashed", color="orange")
 Socket = partial(Edge, style="dashed", color="slateblue")
+Webhook = partial(Edge, style="dashed", color="mediumseagreen")
 
 # pylint: disable=W0104,W0106
 with Diagram(
@@ -147,12 +150,23 @@ with Diagram(
                     >> kong
                 )
             with Cluster("Microservices", direction="LR"):
+                with Cluster("Saas"):
+                    rd_station = Custom("RD Station", "../icons/rd_station.png")
+                    one_signal = Custom("OneSignal", "../icons/onesignal.png")
+                    zenvia = Custom("Zenvia", "../icons/zenvia.png")
+                    blip = Custom("Blip", "../icons/blip.png")
+                    elastic_email = Custom(
+                        "Elastic Email", "../icons/elastic_email.png"
+                    )
+                    telegram = Telegram("Telegram")
+                    discord = Discord("Discord")
                 with Cluster("E-commerce"):
                     server = NodeJS("Superon Server")
                     payment = NodeJS("Payment")
                     frete = NodeJS("Frete")
                     spreadsheet = NodeJS("Spreadsheet")
                     order = NodeJS("Order")
+                    telebot = NodeJS("Telebot")
                     indexed_search = NodeJS("Indexed Search")
                     image_proxy = Go("Image Proxy")
                     irecommend = Python("IRecommend")
@@ -162,9 +176,14 @@ with Diagram(
                     message_job = Python("Message Job")
                     prupru = NodeJS("Prupru")
                     rdstation_notifier = NodeJS("RDStation Notifier")
-                    onesignal_notifier = NodeJS("Superon Notifier")
+                    message_notifier = NodeJS("Message Notifier")
                     pizzaroll = NodeJS("Pizzaroll")
                     webcommerce - Socket() - chateado
+                    message_notifier >> Rest() >> [one_signal, blip, zenvia]
+                    rdstation_notifier >> Rest() >> rd_station
+                    telebot >> Rest() >> telegram
+                    message_job >> Rest() >> elastic_email
+                    server >> Webhook() >> discord
                 with Cluster("Botinho"):
                     api_atendimento = NodeJS("API Atendimento")
                     api_socket = NodeJS("API Socket")
