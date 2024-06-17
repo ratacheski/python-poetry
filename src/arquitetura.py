@@ -11,6 +11,13 @@ from diagrams.custom import Custom
 from diagrams.digitalocean.network import LoadBalancer
 
 # ============================================================================ #
+# SaaS:
+#
+#   https://diagrams.mingrammer.com/docs/nodes/elastic
+#
+from diagrams.elastic.elasticsearch import ElasticSearch
+
+# ============================================================================ #
 # Kubernetes resources:
 #
 #   https://diagrams.mingrammer.com/docs/nodes/k8s
@@ -21,6 +28,8 @@ from diagrams.digitalocean.network import LoadBalancer
 #   https://diagrams.mingrammer.com/docs/nodes/onprem
 #
 from diagrams.onprem.client import Users
+from diagrams.onprem.database import PostgreSQL
+from diagrams.onprem.inmemory import Redis
 from diagrams.onprem.network import Kong, Nginx
 from diagrams.onprem.queue import Kafka
 
@@ -54,12 +63,13 @@ graph_attr = {
     "label": "Arquitetura Lifeapps",
     "compound": "true",
     "center": "true",
+    # "splines": "spline",  # noqa: ERA001
 }
 
 edge_attr = {
     "fontsize": "20",
     "arrowhead": "vee",
-    "penwidth": "2",
+    "penwidth": "4",
 }
 
 Rest = partial(Edge, color="dodgerblue")
@@ -96,6 +106,30 @@ with Diagram(
             )
             >> dns
         )
+    with Cluster("Saas"):
+        rd_station = Custom("RD Station", "../icons/rd_station.png")
+        with Cluster("Notification"):
+            zenvia = Custom("Zenvia", "../icons/zenvia.png")
+            one_signal = Custom("OneSignal", "../icons/onesignal.png")
+            blip = Custom("Blip", "../icons/blip.png")
+        elastic_email = Custom("Elastic Email", "../icons/elastic_email.png")
+        telegram = Telegram("Telegram")
+        discord = Discord("Discord")
+
+    with Cluster("Gateways"):
+        cielo = Custom("Cielo", "../icons/cielo.png")
+        clearsale = Custom("Clearsale", "../icons/clearsale.png")
+        mercadopago = Custom("Mercado Pago", "../icons/mercadopago.png")
+        getnet = Custom("Getnet", "../icons/getnet.png")
+        paghiper = Custom("Pag Hiper", "../icons/paghiper.png")
+        mundipagg = Custom("Mundipagg", "../icons/mundipagg.png")
+        efi = Custom("Efí", "../icons/efi.png")
+        rede = Custom("Rede", "../icons/rede.png")
+        bradesco = Custom("Bradesco", "../icons/bradesco.png")
+
+    with Cluster("Transportadoras"):
+        correios = Custom("Correios", "../icons/correios.png")
+        frenet = Custom("Frenet", "../icons/frenet.png")
 
     with Cluster("Digital Ocean"):
         load_balancer = LoadBalancer("K8S Load Balancer")
@@ -203,90 +237,158 @@ with Diagram(
                     )
                     >> keycloak
                 )
-            with Cluster("Microservices", direction="LR"):
-                with Cluster("Saas"):
-                    rd_station = Custom("RD Station", "../icons/rd_station.png")
-                    one_signal = Custom("OneSignal", "../icons/onesignal.png")
-                    zenvia = Custom("Zenvia", "../icons/zenvia.png")
-                    blip = Custom("Blip", "../icons/blip.png")
-                    elastic_email = Custom(
-                        "Elastic Email", "../icons/elastic_email.png"
-                    )
-                    telegram = Telegram("Telegram")
-                    discord = Discord("Discord")
-                with Cluster("E-commerce"):
-                    server = NodeJS("Superon Server")
+            with Cluster("E-commerce"):
+                # applications
+                with Cluster("Payment"):
                     payment = NodeJS("Payment")
+                    payment_db = PostgreSQL("Payment DB")
+                    payment - payment_db
+                    (
+                        payment
+                        >> Rest(
+                            lhead="cluster_Gateways",
+                            minlen="2",
+                        )
+                        >> paghiper
+                    )
+                    (
+                        paghiper
+                        >> Webhook(
+                            ltail="cluster_Gateways",
+                            minlen="2",
+                        )
+                        >> payment
+                    )
+                with Cluster("Frete"):
                     frete = NodeJS("Frete")
-                    spreadsheet = NodeJS("Spreadsheet")
+                    frete_db = PostgreSQL("Frete DB")
+                    frete - frete_db
+                    (
+                        frete
+                        >> Rest(
+                            lhead="cluster_Transportadoras",
+                            minlen="2",
+                        )
+                        >> frenet
+                    )
+                with Cluster("Order"):
                     order = NodeJS("Order")
-                    telebot = NodeJS("Telebot")
+                    order_db = PostgreSQL("Order DB")
+                    order - order_db
+                with Cluster("Indexer"):
                     indexed_search = NodeJS("Indexed Search")
-                    image_proxy = Go("Image Proxy")
+                    pizzaroll = NodeJS("Pizzaroll")
+                    elastic_search = ElasticSearch("Index\nProducts")
+                    pizzaroll >> elastic_search
+                    indexed_search << elastic_search
+                image_proxy = Go("Image Proxy")
+                with Cluster("IRecommend"):
                     irecommend = Python("IRecommend")
-                    chateado = NodeJS("Chateado")
+                    irecommend_helper = Python("IRecommend\nHelper")
+                    irecommend_db = PostgreSQL("IRecommend DB")
+                    [irecommend, irecommend_helper] - irecommend_db
+                with Cluster("Authenticator"):
                     authenticator = nestjs("Authenticator")
+                    authenticator_db = PostgreSQL("Auth DB")
+                    authenticator - authenticator_db
+                with Cluster("Dados Públicos"):
                     dadospublicos = NodeJS("Dados Públicos")
+                    cep_db = PostgreSQL("CEP DB")
+                    dadospublicos - cep_db
+                with Cluster("Notification"):
                     message_job = Python("Message Job")
                     prupru = NodeJS("Prupru")
+                    telebot = NodeJS("Telebot")
+                    telegram_db = PostgreSQL("Telegram DB")
+                    telebot - telegram_db
+                    email_db = PostgreSQL("Email DB")
+                    rd_station_db = PostgreSQL("RD Station DB")
+                    [message_job, prupru] - email_db
                     rdstation_notifier = NodeJS("RDStation Notifier")
+                    rdstation_notifier - rd_station_db
                     message_notifier = NodeJS("Message Notifier")
-                    pizzaroll = NodeJS("Pizzaroll")
-                    [webcommerce, custom_webcommerce] - Socket() - chateado
-                    message_notifier >> Rest() >> [one_signal, blip, zenvia]
-                    rdstation_notifier >> Rest() >> rd_station
-                    telebot >> Rest() >> telegram
-                    message_job >> Rest() >> elastic_email
-                    server >> Webhook() >> discord
-                with Cluster("Botinho"):
-                    api_atendimento = nestjs("API Atendimento")
-                    api_socket = nestjs("API Socket")
-                    botinho - Socket() - api_socket
-                with Cluster("Integração"):
-                    paje = Go("Pajé")
-                with Cluster("Cashback"):
-                    cashback_api = nestjs("Cashback Api")
-                with Cluster("Menu Único"):
-                    menu_unico_api = NodeJS("Menu Único API")
-                    faturamento = NodeJS("Faturamento")
+                    notifier_db = PostgreSQL("Notifier DB")
+                    message_notifier - notifier_db
+                with Cluster("Superon Server"):
+                    server = NodeJS("Superon Server")
+                    spreadsheet = NodeJS("Spreadsheet")
+                    redis = Redis("Redis")
+                    with Cluster("Database"):
+                        superon_db_master = PostgreSQL("Superon DB")
+                        superon_db_ro = PostgreSQL("Superon DB RO")
+                        superon_db_master - superon_db_ro
+                    server - superon_db_master
+                    server - redis
+                with Cluster("Chateado"):
+                    chateado = NodeJS("Chateado")
+                    (chateado >> Grpc() >> server)
+                [webcommerce, custom_webcommerce] - Socket() - chateado
                 (
-                    kong
+                    message_notifier
                     >> Rest(
-                        ltail="cluster_Api Gateway",
+                        lhead="cluster_Notification",
                         minlen="2",
                     )
-                    >> [
-                        server,
-                        payment,
-                        frete,
-                        spreadsheet,
-                        order,
-                        indexed_search,
-                        irecommend,
-                        paje,
-                        faturamento,
-                        authenticator,
-                        dadospublicos,
-                        prupru,
-                        image_proxy,
-                        menu_unico_api,
-                        api_atendimento,
-                        cashback_api,
-                    ]
+                    >> one_signal
                 )
-                (server >> Grpc(label="Consulta Preço") >> paje)
-                (paje >> Rest() >> server)
-                (
-                    [faturamento, menu_unico_api]
-                    >> Auth(
-                        ltail="cluster_Api Gateway",
-                        lhead="cluster_Auth",
-                        minlen="2",
-                    )
-                    >> keycloak
+                rdstation_notifier >> Rest() >> rd_station
+                telebot >> Rest() >> telegram
+                message_job >> Rest() >> elastic_email
+                server >> Webhook() >> discord
+            with Cluster("Botinho"):
+                api_atendimento = nestjs("API Atendimento")
+                api_socket = nestjs("API Socket")
+                botinho - Socket() - api_socket
+            with Cluster("Integração"):
+                paje = Go("Pajé")
+            with Cluster("Cashback"):
+                cashback_api = nestjs("Cashback Api")
+                cashback_db = PostgreSQL("Cashback DB")
+                cashback_api - cashback_db
+            with Cluster("Menu Único"):
+                menu_unico_api = NodeJS("Menu Único API")
+                faturamento = NodeJS("Faturamento")
+            (
+                kong
+                >> Rest(
+                    ltail="cluster_Api Gateway",
+                    minlen="2",
                 )
-            with Cluster("Message Broker"):
-                kafka = Kafka("Kafka Cluster")
+                >> [
+                    server,
+                    payment,
+                    frete,
+                    spreadsheet,
+                    order,
+                    indexed_search,
+                    irecommend,
+                    paje,
+                    faturamento,
+                    authenticator,
+                    dadospublicos,
+                    prupru,
+                    image_proxy,
+                    menu_unico_api,
+                    api_atendimento,
+                    cashback_api,
+                ]
+            )
+            (server >> Grpc() >> paje)
+            (paje >> Rest() >> server)
+            (
+                [faturamento, menu_unico_api]
+                >> Auth(
+                    ltail="cluster_Api Gateway",
+                    lhead="cluster_Auth",
+                    minlen="2",
+                )
+                >> keycloak
+            )
+            with Cluster("Kafka Cluster", graph_attr={"minwidth": "100px"}):
+                kafka = Kafka("Broker 01")
+                kafka_02 = Kafka("Broker 02")
+                kafka_03 = Kafka("Broker 03")
+                kafka - [kafka_02, kafka_03]
                 (
                     [
                         server,
@@ -294,6 +396,7 @@ with Diagram(
                         spreadsheet,
                         order,
                         irecommend,
+                        irecommend_helper,
                         chateado,
                         faturamento,
                         prupru,
